@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访问被拒绝 - ComfyUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .icon {
+            font-size: 80px;
+            color: #ff6b6b;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            border-left: 4px solid #3498db;
+        }
+
+        .info-box h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .info-box p {
+            color: #5a6c7d;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .steps {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .steps ol {
+            padding-left: 20px;
+        }
+
+        .steps li {
+            margin: 10px 0;
+            color: #5a6c7d;
+            line-height: 1.5;
+        }
+
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin: 10px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #ecf0f1;
+            color: #95a5a6;
+            font-size: 14px;
+        }
+
+        .tech-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 40px 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .subtitle {
+                font-size: 16px;
+            }
+            
+            .icon {
+                font-size: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔒</div>
+        
+        <h1>访问被拒绝</h1>
+        <p class="subtitle">此ComfyUI实例需要有效的JWT认证令牌才能访问</p>
+
+        <div class="info-box">
+            <h3>🔑 需要JWT认证</h3>
+            <p>此ComfyUI前端已配置为仅允许通过SoDesign.AI系统认证的用户访问。</p>
+            <p>您需要通过正确的入口点访问此应用程序。</p>
+        </div>
+
+        <div class="info-box">
+            <h3>📋 正确的访问方式</h3>
+            <div class="steps">
+                <ol>
+                    <li>登录到 <strong>SoDesign.AI</strong> 系统</li>
+                    <li>导航到 <strong>"创建工作流"</strong> 页面</li>
+                    <li>系统将自动生成JWT访问令牌</li>
+                    <li>通过iframe或直接链接访问ComfyUI</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="tech-info">
+            <strong>技术说明：</strong> 
+            此应用程序需要在URL中包含有效的JWT令牌参数 (?token=...)。
+            直接访问 localhost:5173 将被重定向到此页面。
+        </div>
+
+        <a href="http://192.168.1.17:5000/login.html" class="button">
+            🚀 前往SoDesign.AI登录
+        </a>
+
+        <div class="footer">
+            <p>ComfyUI Frontend with JWT Authentication</p>
+            <p>Powered by SoDesign.AI</p>
+        </div>
+    </div>
+
+    <script>
+        // 检查是否有令牌参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        if (token) {
+            // 如果有令牌，尝试重定向到主应用
+            console.log('检测到JWT令牌，重定向到主应用...');
+            window.location.href = `http://localhost:5173/?token=${encodeURIComponent(token)}`;
+        }
+
+        // 显示当前时间
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('zh-CN');
+            document.querySelector('.footer').innerHTML += `<p>访问时间: ${timeString}</p>`;
+        }
+
+        // 页面加载完成后更新时间
+        window.addEventListener('load', updateTime);
+    </script>
+</body>
+</html>

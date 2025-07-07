@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>ComfyUI JWT Authentication Test</h1>
+    
+    <div class="container info">
+        <h3>测试说明</h3>
+        <p>此页面用于测试ComfyUI的JWT认证功能。</p>
+        <p>你可以：</p>
+        <ul>
+            <li>生成测试JWT令牌</li>
+            <li>测试令牌验证</li>
+            <li>查看用户信息</li>
+            <li>测试ComfyUI集成</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h3>1. 生成测试JWT令牌</h3>
+        <button onclick="generateTestToken()">生成测试令牌</button>
+        <div id="tokenResult"></div>
+    </div>
+
+    <div class="container">
+        <h3>2. 测试令牌验证</h3>
+        <input type="text" id="tokenInput" placeholder="输入JWT令牌">
+        <button onclick="testTokenVerification()">验证令牌</button>
+        <div id="verificationResult"></div>
+    </div>
+
+    <div class="container">
+        <h3>3. 测试ComfyUI集成</h3>
+        <button onclick="testComfyUIIntegration()">打开ComfyUI (带测试令牌)</button>
+        <div id="integrationResult"></div>
+    </div>
+
+    <script>
+        // 生成测试JWT令牌
+        function generateTestToken() {
+            const header = {
+                "alg": "HS256",
+                "typ": "JWT"
+            };
+
+            const payload = {
+                "iss": "SoDesign.AI",
+                "aud": "sodesign-users",
+                "sub": "test-user-123",
+                "iat": Math.floor(Date.now() / 1000),
+                "exp": Math.floor(Date.now() / 1000) + 3600, // 1小时后过期
+                "type": "access",
+                "user_id": "test-user-123",
+                "username": "测试用户",
+                "email": "test@sodesign.ai",
+                "role": "user",
+                "permissions": ["workflow_create", "workflow_edit", "workflow_view"]
+            };
+
+            // 注意：这只是一个模拟令牌，实际应用中需要服务器端签名
+            const encodedHeader = btoa(JSON.stringify(header));
+            const encodedPayload = btoa(JSON.stringify(payload));
+            const signature = "test-signature"; // 实际应用中这应该是真实的签名
+
+            const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+            document.getElementById('tokenInput').value = token;
+            document.getElementById('tokenResult').innerHTML = `
+                <div class="container success">
+                    <h4>生成的测试令牌：</h4>
+                    <pre>${token}</pre>
+                    <h4>载荷内容：</h4>
+                    <pre>${JSON.stringify(payload, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // 测试令牌验证
+        async function testTokenVerification() {
+            const token = document.getElementById('tokenInput').value;
+            if (!token) {
+                alert('请先输入或生成JWT令牌');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://192.168.1.17:5000/api/comfyui/verify_token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.authenticated) {
+                    document.getElementById('verificationResult').innerHTML = `
+                        <div class="container success">
+                            <h4>验证成功！</h4>
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('verificationResult').innerHTML = `
+                        <div class="container error">
+                            <h4>验证失败</h4>
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('verificationResult').innerHTML = `
+                    <div class="container error">
+                        <h4>请求失败</h4>
+                        <p>错误: ${error.message}</p>
+                        <p>请确保验证API服务器正在运行在 http://192.168.1.17:5000</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 测试ComfyUI集成
+        function testComfyUIIntegration() {
+            const token = document.getElementById('tokenInput').value;
+            if (!token) {
+                alert('请先输入或生成JWT令牌');
+                return;
+            }
+
+            const comfyUIUrl = `http://localhost:5173/?token=${encodeURIComponent(token)}`;
+            
+            document.getElementById('integrationResult').innerHTML = `
+                <div class="container info">
+                    <h4>ComfyUI集成测试</h4>
+                    <p>将在新窗口中打开ComfyUI，带有JWT令牌参数。</p>
+                    <p>URL: <a href="${comfyUIUrl}" target="_blank">${comfyUIUrl}</a></p>
+                    <p>请检查：</p>
+                    <ul>
+                        <li>浏览器控制台中的JWT认证日志</li>
+                        <li>设置->用户 面板中的用户信息</li>
+                        <li>用户角色和权限显示</li>
+                    </ul>
+                </div>
+            `;
+
+            // 在新窗口中打开ComfyUI
+            window.open(comfyUIUrl, '_blank');
+        }
+
+        // 页面加载时自动生成测试令牌
+        window.onload = function() {
+            generateTestToken();
+        };
+    </script>
+</body>
+</html>

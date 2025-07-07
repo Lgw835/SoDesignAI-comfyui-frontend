@@ -1,0 +1,16 @@
+/* User data specific styles */
+
+/* This file is loaded from the API userdata endpoint */
+/* Add any user-specific customizations here */
+
+/* Example: Custom node colors for specific users */
+.user-custom-node {
+  background-color: var(--user-primary-color, #3498db);
+}
+
+/* Example: User-specific workflow styling */
+.user-workflow-container {
+  border: 2px solid var(--user-accent-color, #2ecc71);
+}
+
+/* Placeholder for user-specific styles loaded from server */

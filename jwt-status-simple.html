@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Status - Simplified</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 5px solid #28a745; }
+        .info { border-left: 5px solid #17a2b8; }
+        .warning { border-left: 5px solid #ffc107; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        
+        .token-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        
+        .user-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 JWT Authentication Status</h1>
+    
+    <div class="card info">
+        <h3>📋 项目配置</h3>
+        <p>✅ 移除了积分余额功能</p>
+        <p>✅ 移除了登出按钮功能</p>
+        <p>✅ JWT用户会话自动管理</p>
+        <p>✅ 简化的用户界面</p>
+    </div>
+
+    <div class="card" id="currentStatus">
+        <h3>🔍 当前状态</h3>
+        <div id="statusInfo">检查中...</div>
+    </div>
+
+    <div class="card">
+        <h3>🧪 测试功能</h3>
+        <button onclick="openComfyUIWithRealToken()">使用真实JWT令牌打开ComfyUI</button>
+        <button onclick="openComfyUIWithoutToken()">不带令牌打开ComfyUI</button>
+        <button onclick="analyzeRealToken()">分析真实JWT令牌</button>
+    </div>
+
+    <div id="tokenAnalysis"></div>
+
+    <script>
+        // 真实的JWT令牌
+        const realToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJTb0Rlc2lnbi5BSSIsImF1ZCI6InNvZGVzaWduLXVzZXJzIiwic3ViIjoiNjgxYTJmZGFhMjZkY2ZhYWJkMzZjZjYxIiwiaWF0IjoxNzUxODczMDE0LCJleHAiOjE3NTE4NzQ4MTQsInR5cGUiOiJhY2Nlc3MiLCJ1c2VyX2lkIjoiNjgxYTJmZGFhMjZkY2ZhYWJkMzZjZjYxIiwidXNlcm5hbWUiOiJtYXh3ZWxsIiwiZW1haWwiOiIzMTU4OTE4MDgyQHFxLmNvbSIsInJvbGUiOiJ1c2VyIiwicGVybWlzc2lvbnMiOltdfQ.JX2dgQgcgyoYuAEfPobELYeWIkEyeLrHoay9jsykJkKbIqlLU_Kqy6UArEuyp2z1G9p5516cpeaFzohU9f7p_l5gzgJ0fmDGWTEqDytaFmOuN5aAVyOZ1HHKlo-sRBnu9Qae_yKSgSbI23s1hAEJwz6H-nW3oFxytPllX-UtyhA-LzTjpz-tH_4glVE57uz_TL4LKyMyFqRIBQCJD6CnTs9Lx-pqK0Q_u4HcNfh4JXCbA1eiRwYD7jv7Ej_SNLgl5eBygGhSofT64QAWkAICirOa3VkSRzQAZIQOsYzoIa6q845MFZAdtgm0pRFq5aiL0g4lBSpz8q0JHw52uh_dPA";
+
+        function parseJwtPayload(token) {
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) return null;
+                const payload = parts[1];
+                const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+                const decoded = atob(paddedPayload);
+                return JSON.parse(decoded);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function checkCurrentStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasToken = urlParams.has('token');
+            const token = urlParams.get('token');
+            
+            let statusHtml = `
+                <p><strong>当前URL:</strong> ${window.location.href}</p>
+                <p><strong>URL中有JWT令牌:</strong> ${hasToken ? '✅ 是' : '❌ 否'}</p>
+            `;
+
+            if (hasToken && token) {
+                const payload = parseJwtPayload(token);
+                if (payload) {
+                    const isExpired = payload.exp < Math.floor(Date.now() / 1000);
+                    const timeLeft = payload.exp - Math.floor(Date.now() / 1000);
+                    
+                    statusHtml += `
+                        <div class="user-info">
+                            <h4>🔑 JWT令牌信息</h4>
+                            <p><strong>用户:</strong> ${payload.username}</p>
+                            <p><strong>邮箱:</strong> ${payload.email}</p>
+                            <p><strong>角色:</strong> ${payload.role}</p>
+                            <p><strong>权限:</strong> ${payload.permissions.length > 0 ? payload.permissions.join(', ') : '无'}</p>
+                            <p><strong>状态:</strong> ${isExpired ? '❌ 已过期' : '✅ 有效'}</p>
+                            <p><strong>剩余时间:</strong> ${timeLeft > 0 ? Math.floor(timeLeft / 60) + ' 分钟' : '已过期'}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('currentStatus').className = `card ${isExpired ? 'warning' : 'success'}`;
+                } else {
+                    statusHtml += '<p>❌ 令牌格式无效</p>';
+                    document.getElementById('currentStatus').className = 'card warning';
+                }
+            } else {
+                document.getElementById('currentStatus').className = 'card info';
+            }
+
+            document.getElementById('statusInfo').innerHTML = statusHtml;
+        }
+
+        function openComfyUIWithRealToken() {
+            const url = `http://localhost:5173/?token=${encodeURIComponent(realToken)}`;
+            window.open(url, '_blank');
+        }
+
+        function openComfyUIWithoutToken() {
+            window.open('http://localhost:5173/', '_blank');
+        }
+
+        function analyzeRealToken() {
+            const payload = parseJwtPayload(realToken);
+            if (!payload) {
+                document.getElementById('tokenAnalysis').innerHTML = `
+                    <div class="card warning">
+                        <h3>❌ 令牌解析失败</h3>
+                    </div>
+                `;
+                return;
+            }
+
+            const isExpired = payload.exp < Math.floor(Date.now() / 1000);
+            const timeLeft = payload.exp - Math.floor(Date.now() / 1000);
+
+            document.getElementById('tokenAnalysis').innerHTML = `
+                <div class="card ${isExpired ? 'warning' : 'success'}">
+                    <h3>🔍 真实JWT令牌分析</h3>
+                    
+                    <div class="user-info">
+                        <h4>👤 用户信息</h4>
+                        <p><strong>用户ID:</strong> ${payload.user_id}</p>
+                        <p><strong>用户名:</strong> ${payload.username}</p>
+                        <p><strong>邮箱:</strong> ${payload.email}</p>
+                        <p><strong>角色:</strong> ${payload.role}</p>
+                        <p><strong>权限:</strong> ${payload.permissions.length > 0 ? payload.permissions.join(', ') : '无权限'}</p>
+                    </div>
+
+                    <div class="user-info">
+                        <h4>⏰ 时间信息</h4>
+                        <p><strong>签发时间:</strong> ${new Date(payload.iat * 1000).toLocaleString()}</p>
+                        <p><strong>过期时间:</strong> ${new Date(payload.exp * 1000).toLocaleString()}</p>
+                        <p><strong>状态:</strong> ${isExpired ? '❌ 已过期' : '✅ 有效'}</p>
+                        <p><strong>剩余时间:</strong> ${timeLeft > 0 ? Math.floor(timeLeft / 60) + ' 分钟' : '已过期'}</p>
+                    </div>
+
+                    <div class="user-info">
+                        <h4>🏢 发行信息</h4>
+                        <p><strong>发行者:</strong> ${payload.iss}</p>
+                        <p><strong>受众:</strong> ${payload.aud}</p>
+                        <p><strong>主题:</strong> ${payload.sub}</p>
+                        <p><strong>类型:</strong> ${payload.type}</p>
+                    </div>
+
+                    <h4>📄 完整载荷</h4>
+                    <div class="token-display">
+                        ${JSON.stringify(payload, null, 2)}
+                    </div>
+
+                    <h4>🔗 测试链接</h4>
+                    <p>
+                        <a href="http://localhost:5173/?token=${encodeURIComponent(realToken)}" target="_blank">
+                            在ComfyUI中测试此令牌
+                        </a>
+                    </p>
+                </div>
+            `;
+        }
+
+        // 页面加载时检查状态
+        window.onload = checkCurrentStatus;
+    </script>
+</body>
+</html>
