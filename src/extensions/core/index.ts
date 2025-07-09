@@ -1,3 +1,4 @@
+import './autoCloudUpload'
 import './clipspace'
 import './contextMenuFilter'
 import './dynamicPrompts'

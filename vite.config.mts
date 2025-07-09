@@ -20,6 +20,8 @@ const DISABLE_VUE_PLUGINS = process.env.DISABLE_VUE_PLUGINS === 'true'
 
 const DEV_SERVER_COMFYUI_URL =
   process.env.DEV_SERVER_COMFYUI_URL || 'http://127.0.0.1:8188'
+const DEV_SERVER_MONGODB_API_URL =
+  process.env.DEV_SERVER_MONGODB_API_URL || 'http://192.168.1.17:5000'
 
 export default defineConfig({
   base: '',
@@ -28,6 +30,12 @@ export default defineConfig({
     proxy: {
       '/internal': {
         target: DEV_SERVER_COMFYUI_URL
+      },
+
+      '/api/comfyui': {
+        target: DEV_SERVER_MONGODB_API_URL,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/comfyui/, '/api/comfyui')
       },
 
       '/api': {

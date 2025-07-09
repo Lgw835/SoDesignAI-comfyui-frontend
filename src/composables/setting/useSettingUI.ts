@@ -27,10 +27,8 @@ export function useSettingUI(
     | 'extension'
     | 'server-config'
     | 'user'
-    | 'credits'
 ) {
   const { t } = useI18n()
-  const { isLoggedIn } = useCurrentUser()
   const settingStore = useSettingStore()
   const activeCategory = ref<SettingTreeNode | null>(null)
 
@@ -72,16 +70,7 @@ export function useSettingUI(
     )
   }
 
-  const creditsPanel: SettingPanelItem = {
-    node: {
-      key: 'credits',
-      label: 'Credits',
-      children: []
-    },
-    component: defineAsyncComponent(
-      () => import('@/components/dialog/content/setting/CreditsPanel.vue')
-    )
-  }
+
 
   const userPanel: SettingPanelItem = {
     node: {
@@ -130,7 +119,6 @@ export function useSettingUI(
   const panels = computed<SettingPanelItem[]>(() =>
     [
       aboutPanel,
-      creditsPanel,
       userPanel,
       keybindingPanel,
       extensionPanel,
@@ -160,13 +148,12 @@ export function useSettingUI(
   })
 
   const groupedMenuTreeNodes = computed<SettingTreeNode[]>(() => [
-    // Account settings - only show credits when user is authenticated
+    // Account settings
     {
       key: 'account',
       label: 'Account',
       children: [
-        userPanel.node,
-        ...(isLoggedIn.value ? [creditsPanel.node] : [])
+        userPanel.node
       ].map(translateCategory)
     },
     // Normal settings stored in the settingStore

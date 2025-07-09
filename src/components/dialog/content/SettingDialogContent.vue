@@ -86,7 +86,6 @@ const { defaultPanel } = defineProps<{
     | 'extension'
     | 'server-config'
     | 'user'
-    | 'credits'
 }>()
 
 const {
