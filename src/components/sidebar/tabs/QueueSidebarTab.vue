@@ -32,19 +32,12 @@
           @click="toggleExpanded"
         />
         <Button
-          v-if="queueStore.hasPendingTasks"
-          v-tooltip.bottom="$t('sideToolbar.queueTab.clearPendingTasks')"
-          icon="pi pi-stop"
-          severity="danger"
+          icon="pi pi-refresh"
           text
-          @click="() => commandStore.execute('Comfy.ClearPendingTasks')"
-        />
-        <Button
-          icon="pi pi-trash"
-          text
-          severity="primary"
-          class="clear-all-button"
-          @click="confirmRemoveAll($event)"
+          severity="secondary"
+          class="refresh-button"
+          @click="refreshHistory"
+          v-tooltip.bottom="'刷新历史'"
         />
       </template>
     </template>
@@ -76,9 +69,9 @@
       </div>
       <div v-else>
         <NoResultsPlaceholder
-          icon="pi pi-info-circle"
-          :title="$t('g.noTasksFound')"
-          :message="$t('g.noTasksFoundMessage')"
+          icon="pi pi-image"
+          title="暂无生图历史"
+          message="您还没有生成过图像，开始创作吧！"
         />
       </div>
     </template>
@@ -97,9 +90,8 @@ import ConfirmPopup from 'primevue/confirmpopup'
 import ContextMenu from 'primevue/contextmenu'
 import type { MenuItem } from 'primevue/menuitem'
 import ProgressSpinner from 'primevue/progressspinner'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import NoResultsPlaceholder from '@/components/common/NoResultsPlaceholder.vue'
@@ -108,7 +100,6 @@ import { ComfyNode } from '@/schemas/comfyWorkflowSchema'
 import { api } from '@/scripts/api'
 import { app } from '@/scripts/app'
 import { useLitegraphService } from '@/services/litegraphService'
-import { useCommandStore } from '@/stores/commandStore'
 import {
   ResultItemImpl,
   TaskItemImpl,
@@ -121,11 +112,9 @@ import ResultGallery from './queue/ResultGallery.vue'
 import TaskItem from './queue/TaskItem.vue'
 
 const IMAGE_FIT = 'Comfy.Queue.ImageFit'
-const confirm = useConfirm()
 const toast = useToast()
 const queueStore = useQueueStore()
 const settingStore = useSettingStore()
-const commandStore = useCommandStore()
 const { t } = useI18n()
 
 // Expanded view: show all outputs in a flat list.
@@ -157,6 +146,25 @@ const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value
 }
 
+const refreshHistory = async () => {
+  try {
+    await queueStore.update()
+    toast.add({
+      severity: 'success',
+      summary: '刷新成功',
+      detail: '历史图像已更新',
+      life: 3000
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: '刷新失败',
+      detail: '无法获取历史图像',
+      life: 3000
+    })
+  }
+}
+
 const removeTask = async (task: TaskItemImpl) => {
   if (task.isRunning) {
     await api.interrupt()
@@ -164,35 +172,9 @@ const removeTask = async (task: TaskItemImpl) => {
   await queueStore.delete(task)
 }
 
-const removeAllTasks = async () => {
-  await queueStore.clear()
-}
 
-const confirmRemoveAll = (event: Event) => {
-  confirm.require({
-    target: event.currentTarget as HTMLElement,
-    message: 'Do you want to delete all tasks?',
-    icon: 'pi pi-info-circle',
-    rejectProps: {
-      label: 'Cancel',
-      severity: 'secondary',
-      outlined: true
-    },
-    acceptProps: {
-      label: 'Delete',
-      severity: 'danger'
-    },
-    accept: async () => {
-      await removeAllTasks()
-      toast.add({
-        severity: 'info',
-        summary: 'Confirmed',
-        detail: 'Tasks deleted',
-        life: 3000
-      })
-    }
-  })
-}
+
+
 
 const menu = ref<InstanceType<typeof ContextMenu> | null>(null)
 const menuTargetTask = ref<TaskItemImpl | null>(null)
@@ -230,6 +212,18 @@ const menuItems = computed<MenuItem[]>(() => {
         const url = menuTargetTask.value?.previewOutput?.url
         if (url) {
           void settingStore.set('Comfy.Canvas.BackgroundImage', url)
+        }
+      }
+    })
+
+    // 添加下载图片选项
+    items.push({
+      label: '下载图片',
+      icon: 'pi pi-download',
+      command: () => {
+        const task = menuTargetTask.value
+        if (task?.previewOutput?.url) {
+          downloadImage(task.previewOutput.url, task.previewOutput.filename)
         }
       }
     })
@@ -273,6 +267,89 @@ const toggleImageFit = async () => {
     imageFit.value === 'cover' ? 'contain' : 'cover'
   )
 }
+
+/**
+ * 下载图片
+ */
+const downloadImage = async (imageUrl: string, filename: string) => {
+  try {
+    console.log('🔽 开始下载图片:', filename)
+
+    // 显示下载开始的提示
+    toast.add({
+      severity: 'info',
+      summary: '开始下载',
+      detail: `正在下载图片: ${filename}`,
+      life: 2000
+    })
+
+    // 获取图片数据
+    const response = await fetch(imageUrl, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Accept': 'image/*'
+      }
+    })
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status} ${response.statusText}`)
+    }
+
+    const blob = await response.blob()
+
+    // 创建下载链接
+    const downloadUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+
+    // 设置下载文件名，确保有正确的扩展名
+    let downloadFilename = filename
+    if (!downloadFilename.includes('.')) {
+      // 如果文件名没有扩展名，根据blob类型添加
+      const extension = blob.type.split('/')[1] || 'png'
+      downloadFilename = `${filename}.${extension}`
+    }
+
+    link.download = downloadFilename
+    link.style.display = 'none'
+
+    // 触发下载
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // 清理URL对象
+    URL.revokeObjectURL(downloadUrl)
+
+    console.log('✅ 图片下载完成:', downloadFilename)
+
+    // 显示下载成功的提示
+    toast.add({
+      severity: 'success',
+      summary: '下载成功',
+      detail: `图片已保存: ${downloadFilename}`,
+      life: 3000
+    })
+
+  } catch (error) {
+    console.error('❌ 图片下载失败:', error)
+
+    // 显示下载失败的提示
+    toast.add({
+      severity: 'error',
+      summary: '下载失败',
+      detail: `无法下载图片: ${error instanceof Error ? error.message : '未知错误'}`,
+      life: 5000
+    })
+  }
+}
+
+// 组件挂载时初始化历史图像
+onMounted(async () => {
+  await queueStore.update()
+  updateGalleryItems()
+})
 
 watch(allTasks, () => {
   const isGalleryOpen = galleryActiveIndex.value !== -1

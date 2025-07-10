@@ -1144,7 +1144,7 @@
       "sortMode": "排序模式"
     },
     "openWorkflow": "在本地文件系统中打开工作流",
-    "queue": "队列",
+    "queue": "生图历史",
     "queueTab": {
       "backToAllTasks": "返回",
       "clearPendingTasks": "清除待处理任务",

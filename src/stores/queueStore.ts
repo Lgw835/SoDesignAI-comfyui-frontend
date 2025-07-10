@@ -5,7 +5,6 @@ import { computed, ref, toRaw } from 'vue'
 import type {
   ResultItem,
   StatusWsMessageStatus,
-  TaskItem,
   TaskOutput,
   TaskPrompt,
   TaskStatus,
@@ -14,6 +13,7 @@ import type {
 import type { ComfyWorkflowJSON, NodeId } from '@/schemas/comfyWorkflowSchema'
 import { api } from '@/scripts/api'
 import type { ComfyApp } from '@/scripts/app'
+import { useUserImageService, type UserImage } from '@/services/userImageService'
 
 // Task type used in the API.
 export type APITaskType = 'queue' | 'history'
@@ -39,6 +39,10 @@ export class ResultItemImpl {
   format?: string
   frame_rate?: number
 
+  // 历史图像特有字段
+  imageUrl?: string
+  thumbnailUrl?: string
+
   constructor(obj: Record<string, any>) {
     this.filename = obj.filename ?? ''
     this.subfolder = obj.subfolder ?? ''
@@ -49,6 +53,10 @@ export class ResultItemImpl {
 
     this.format = obj.format
     this.frame_rate = obj.frame_rate
+
+    // 历史图像URL
+    this.imageUrl = obj.imageUrl
+    this.thumbnailUrl = obj.thumbnailUrl
   }
 
   get urlParams(): URLSearchParams {
@@ -76,6 +84,10 @@ export class ResultItemImpl {
   }
 
   get url(): string {
+    // 如果有历史图像URL，优先使用
+    if (this.imageUrl) {
+      return this.imageUrl
+    }
     return api.apiURL('/view?' + this.urlParams)
   }
 
@@ -409,6 +421,79 @@ export class TaskItemImpl {
   }
 }
 
+/**
+ * 历史图像任务项类，用于将UserImage转换为TaskItemImpl兼容的格式
+ */
+export class HistoryImageTaskItem extends TaskItemImpl {
+  readonly userImage: UserImage
+
+  constructor(userImage: UserImage) {
+    // 创建一个模拟的prompt结构
+    const mockPrompt: TaskPrompt = [
+      Date.now(), // queueIndex - 使用时间戳
+      userImage._id, // promptId - 使用图像ID
+      {}, // promptInputs - 空对象
+      {
+        client_id: userImage.user_id
+      }, // extraData
+      [] // outputsToExecute
+    ]
+
+    // 创建ResultItemImpl
+    const resultItem = new ResultItemImpl({
+      filename: userImage.image_path.split('/').pop() || '',
+      subfolder: '',
+      type: 'output' as const,
+      nodeId: 'history_image',
+      mediaType: 'images',
+      imageUrl: userImage.image_url,
+      thumbnailUrl: userImage.thumbnail_url
+    })
+
+    // 创建模拟的outputs结构
+    const mockOutputs: TaskOutput = {
+      history_image: {
+        images: [{
+          filename: userImage.image_path.split('/').pop() || '',
+          subfolder: '',
+          type: 'output' as const
+        }]
+      }
+    }
+
+    // 创建模拟的status
+    const mockStatus: TaskStatus = {
+      status_str: userImage.status === 'completed' ? 'success' : 'error',
+      completed: userImage.status === 'completed',
+      messages: []
+    }
+
+    super('History', mockPrompt, mockStatus, mockOutputs, [resultItem])
+    this.userImage = userImage
+  }
+
+  override get displayStatus(): TaskItemDisplayStatus {
+    switch (this.userImage.status) {
+      case 'completed':
+        return TaskItemDisplayStatus.Completed
+      case 'processing':
+        return TaskItemDisplayStatus.Running
+      case 'failed':
+        return TaskItemDisplayStatus.Failed
+      default:
+        return TaskItemDisplayStatus.Completed
+    }
+  }
+
+  override get executionTimeInSeconds(): number {
+    return this.userImage.generation_time
+  }
+
+  override get isHistory(): boolean {
+    return true
+  }
+}
+
 export const useQueueStore = defineStore('queue', () => {
   const runningTasks = ref<TaskItemImpl[]>([])
   const pendingTasks = ref<TaskItemImpl[]>([])
@@ -437,45 +522,91 @@ export const useQueueStore = defineStore('queue', () => {
 
   const update = async () => {
     isLoading.value = true
+    console.log('🔄 开始更新生图历史数据...')
+
+    // 始终清空队列数据，只显示历史图像
+    runningTasks.value = []
+    pendingTasks.value = []
+
     try {
-      const [queue, history] = await Promise.all([
-        api.getQueue(),
-        api.getHistory(maxHistoryItems.value)
-      ])
+      console.log('📸 尝试获取用户历史图像...')
+      // 获取用户历史图像
+      const userImageService = useUserImageService()
+      const userImages = await userImageService.getUserImages({
+        limit: maxHistoryItems.value,
+        status: 'completed'
+      })
 
-      const toClassAll = (tasks: TaskItem[]): TaskItemImpl[] =>
-        tasks
-          .map(
-            (task: TaskItem) =>
-              new TaskItemImpl(
-                task.taskType,
-                task.prompt,
-                // status and outputs only exist on history tasks
-                'status' in task ? task.status : undefined,
-                'outputs' in task ? task.outputs : undefined
-              )
-          )
-          .sort((a, b) => b.queueIndex - a.queueIndex)
+      if (userImages.length > 0) {
+        console.log('✅ 成功获取历史图像，数量:', userImages.length)
 
-      runningTasks.value = toClassAll(queue.Running)
-      pendingTasks.value = toClassAll(queue.Pending)
+        // 详细打印接收到的用户图像数据
+        console.log('📋 queueStore接收到的用户图像数据:')
+        userImages.forEach((userImage, index) => {
+          console.log(`🖼️ 历史图像 ${index + 1}:`, {
+            _id: userImage._id,
+            username: userImage.username,
+            image_url: userImage.image_url, // 重点关注的字段
+            thumbnail_url: userImage.thumbnail_url,
+            workflow_name: userImage.workflow_name,
+            prompt: userImage.prompt?.substring(0, 50) + (userImage.prompt?.length > 50 ? '...' : ''),
+            width: userImage.width,
+            height: userImage.height,
+            status: userImage.status,
+            created_at: userImage.created_at,
+            points_cost: userImage.points_cost
+          })
+          console.log(`🔗 历史图像 ${index + 1} 的 image_url:`, userImage.image_url)
+        })
 
-      const allIndex = new Set<number>(
-        history.History.map((item: TaskItem) => item.prompt[0])
-      )
-      const newHistoryItems = toClassAll(
-        history.History.filter(
-          (item) => item.prompt[0] > lastHistoryQueueIndex.value
+        // 将用户图像转换为TaskItemImpl格式
+        const historyImageTasks = userImages.map((userImage, index) => {
+          const historyTask = new HistoryImageTaskItem(userImage)
+          console.log(`🔄 转换历史图像 ${index + 1}:`, {
+            原始_id: userImage._id,
+            原始image_url: userImage.image_url,
+            转换后promptId: historyTask.promptId,
+            转换后previewOutput: historyTask.previewOutput,
+            转换后flatOutputs: historyTask.flatOutputs.map(output => ({
+              filename: output.filename,
+              imageUrl: output.imageUrl,
+              thumbnailUrl: output.thumbnailUrl,
+              url: output.url
+            }))
+          })
+          return historyTask
+        })
+
+        // 显示历史图像
+        historyTasks.value = historyImageTasks.sort((a, b) =>
+          new Date(b.userImage.created_at * 1000).getTime() - new Date(a.userImage.created_at * 1000).getTime()
         )
-      )
-      const existingHistoryItems = historyTasks.value.filter((item) =>
-        allIndex.has(item.queueIndex)
-      )
-      historyTasks.value = [...newHistoryItems, ...existingHistoryItems]
-        .slice(0, maxHistoryItems.value)
-        .sort((a, b) => b.queueIndex - a.queueIndex)
+
+        console.log('✅ 历史图像数据已更新到队列')
+        console.log('📊 转换后的历史任务数量:', historyTasks.value.length)
+      } else {
+        console.warn('⚠️ 未获取到历史图像数据，显示空的历史状态')
+        historyTasks.value = []
+      }
+    } catch (error) {
+      console.error('❌ 获取历史图像失败:', error)
+
+      // 检查是否是CORS错误
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.error('🚫 检测到CORS错误，这通常是因为:')
+        console.error('   1. API服务器未运行在 http://192.168.1.17:5000')
+        console.error('   2. API服务器未配置CORS允许前端域名')
+        console.error('   3. 网络连接问题')
+        console.error('💡 建议检查API服务器状态和CORS配置')
+        console.error('📋 当前显示空的生图历史状态，不会回退到队列数据')
+      }
+
+      // 不回退到原有队列逻辑，保持空的历史状态
+      historyTasks.value = []
+      console.log('📝 保持空的生图历史状态')
     } finally {
       isLoading.value = false
+      console.log('🏁 生图历史数据更新完成')
     }
   }
 

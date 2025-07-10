@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { useToastStore } from '@/stores/toastStore'
-import type { JwtPayload, JwtUser } from '@/utils/jwtUtil'
+import type { JwtUser } from '@/utils/jwtUtil'
 import {
   extractTokenFromUrl,
   extractUserFromPayload,

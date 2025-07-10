@@ -707,4 +707,5 @@ For comprehensive troubleshooting and technical support, please refer to our off
 
 - **[General Troubleshooting Guide](https://docs.comfy.org/troubleshooting/overview)** - Common issues, performance optimization, and reporting bugs
 - **[Custom Node Issues](https://docs.comfy.org/troubleshooting/custom-node-issues)** - Debugging custom node problems and conflicts
-- **[Desktop Installation Guide](https://docs.comfy.org/installation/desktop/windows)** - Desktop-specific installation and troubleshooting
+- **[Desktop Installation Guide](https://docs.comfy.org/installation/desktop/windows)** - Desktop-specific installation and troubleshooting#   S o D e s i g n A I - c o m f y u i - f r o n t e n d  
+ 

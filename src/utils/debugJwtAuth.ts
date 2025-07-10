@@ -9,7 +9,7 @@ export function debugJwtAuth() {
   console.log('🔍 JWT认证调试信息:')
   console.log('─'.repeat(50))
   console.log('🔑 当前令牌:', jwtAuthStore.currentToken ? '已设置' : '未设置')
-  console.log('👤 用户信息:', jwtAuthStore.userInfo)
+  console.log('👤 用户信息:', jwtAuthStore.currentUser)
   console.log('✅ 认证状态:', jwtAuthStore.isAuthenticated ? '已认证' : '未认证')
   console.log('🌐 API基础URL:', jwtAuthStore.apiBaseUrl)
   
@@ -32,7 +32,7 @@ export function debugJwtAuth() {
   return {
     hasToken: !!jwtAuthStore.currentToken,
     isAuthenticated: jwtAuthStore.isAuthenticated,
-    userInfo: jwtAuthStore.userInfo,
+    userInfo: jwtAuthStore.currentUser,
     tokenLength: jwtAuthStore.currentToken?.length || 0
   }
 }

@@ -150,6 +150,12 @@ const router = createRouter({
           name: 'DesktopUpdateView',
           component: () => import('@/views/DesktopUpdateView.vue'),
           beforeEnter: guardElectronAccess
+        },
+        {
+          path: 'api-test',
+          name: 'ApiTestView',
+          component: () => import('@/components/debug/ApiTestPage.vue'),
+          beforeEnter: guardJwtAuth
         }
       ]
     }

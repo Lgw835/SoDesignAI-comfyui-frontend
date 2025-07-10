@@ -16,6 +16,8 @@ import '@/assets/css/style.css'
 import { FIREBASE_CONFIG } from '@/config/firebase'
 import router from '@/router'
 import { useJwtAuthStore } from '@/stores/jwtAuthStore'
+// 在开发环境下导入测试token工具
+import '@/utils/testToken'
 
 import App from './App.vue'
 import { i18n } from './i18n'

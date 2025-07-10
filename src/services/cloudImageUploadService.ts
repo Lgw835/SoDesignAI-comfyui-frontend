@@ -75,6 +75,11 @@ export class CloudImageUploadService {
 
     const response = await fetch(this.baseUrl, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Accept': 'application/json'
+      },
       body: formData
     })
 
@@ -102,8 +107,11 @@ export class CloudImageUploadService {
     
     const response = await fetch(this.apiUrl, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         fileName: filename,
