@@ -14,6 +14,37 @@ import { isSubgraph } from '@/utils/typeGuardUtil'
 
 import { UserFile } from './userFileStore'
 
+/**
+ * 将工作流JSON数据自动下载到本地
+ * @param workflowPath 工作流路径 (例如: "workflows/my_workflow.json")
+ * @param jsonContent JSON字符串内容
+ */
+async function saveWorkflowToLocalFile(workflowPath: string, jsonContent: string): Promise<void> {
+  try {
+    // 从工作流路径中提取文件名，去掉 "workflows/" 前缀
+    const fileName = workflowPath.replace(/^workflows\//, '')
+
+    // 创建并触发文件下载
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.style.display = 'none'
+
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+
+    // 清理 URL 对象
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    // 下载失败不应该影响主要的保存流程
+    console.error('工作流文件下载失败:', error)
+  }
+}
+
 export class ComfyWorkflow extends UserFile {
   static readonly basePath = 'workflows/'
 
@@ -99,6 +130,10 @@ export class ComfyWorkflow extends UserFile {
     const ret = await super.save({ force: true })
     this.changeTracker?.reset()
     this.isModified = false
+
+    // 同时下载JSON文件到本地
+    await saveWorkflowToLocalFile(this.path, this.content)
+
     return ret
   }
 
@@ -109,7 +144,12 @@ export class ComfyWorkflow extends UserFile {
    */
   override async saveAs(path: string) {
     this.content = JSON.stringify(this.activeState)
-    return await super.saveAs(path)
+    const ret = await super.saveAs(path)
+
+    // 同时下载JSON文件到本地
+    await saveWorkflowToLocalFile(path, this.content)
+
+    return ret
   }
 }
 
